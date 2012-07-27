@@ -86,6 +86,7 @@ __typeof__(h) __h = (h);                                    \
 #import <objc/runtime.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/message.h>
+#import <UIKit/UIGestureRecognizerSubclass.h>
 #import "WrapController.h"
 
 #define DURATION_FAST 0.3
@@ -93,6 +94,20 @@ __typeof__(h) __h = (h);                                    \
 #define SLIDE_DURATION(animated,duration) ((animated) ? (duration) : 0)
 #define OPEN_SLIDE_DURATION(animated) SLIDE_DURATION(animated,DURATION_FAST)
 #define CLOSE_SLIDE_DURATION(animated) SLIDE_DURATION(animated,DURATION_SLOW)
+
+
+@interface IIViewDeckPanGestureRecognizer : UIPanGestureRecognizer
+@end
+
+@implementation IIViewDeckPanGestureRecognizer
+
+- (BOOL)canPreventGestureRecognizer:(UIGestureRecognizer *)preventedGestureRecognizer;
+{
+  return NO;
+}
+
+@end
+
 
 @interface IIViewDeckController () <UIGestureRecognizerDelegate> 
 
@@ -1168,7 +1183,12 @@ __typeof__(h) __h = (h);                                    \
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
     CGFloat px = self.slidingControllerView.frame.origin.x;
     if (px != 0) return YES;
-        
+
+    if ([self isPanningVertically:(UIPanGestureRecognizer*)gestureRecognizer])
+    {
+      return NO;
+    }
+  
     CGFloat x = [self locationOfPanner:(UIPanGestureRecognizer*)gestureRecognizer];
     BOOL ok =  YES;
 
@@ -1194,6 +1214,12 @@ __typeof__(h) __h = (h);                                    \
 
     _panOrigin = self.slidingControllerView.frame.origin.x;
     return YES;
+}
+
+- (BOOL)isPanningVertically:(UIPanGestureRecognizer *)panner {
+  CGPoint pan = [panner translationInView:self.referenceView];
+  CGPoint velocity = [panner velocityInView:self.referenceView];
+  return fabsf(pan.y + velocity.y) > fabsf(pan.x + velocity.x);
 }
 
 - (CGFloat)locationOfPanner:(UIPanGestureRecognizer*)panner {
@@ -1325,7 +1351,7 @@ __typeof__(h) __h = (h);                                    \
 - (void)addPanner:(UIView*)view {
     if (!view) return;
     
-    UIPanGestureRecognizer* panner = II_AUTORELEASE([[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panned:)]);
+    UIPanGestureRecognizer* panner = II_AUTORELEASE([[IIViewDeckPanGestureRecognizer alloc] initWithTarget:self action:@selector(panned:)]);
     panner.cancelsTouchesInView = YES;
     panner.delegate = self;
     [view addGestureRecognizer:panner];
