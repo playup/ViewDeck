@@ -635,21 +635,50 @@ __typeof__(h) __h = (h);                                    \
 
 #pragma mark - rotation
 
+- (void)relayRotationMethod:(void(^)(UIViewController* controller))relay {
+  // first check ios6. we return yes in the method, so don't bother
+  BOOL ios6 = [super respondsToSelector:@selector(shouldAutomaticallyForwardRotationMethods)] && [self shouldAutomaticallyForwardRotationMethods];
+  if (ios6) return;
+
+  // no need to check for ios5, since we already said that we'd handle it ourselves.
+  relay(self.centerController);
+  relay(self.leftController);
+  relay(self.rightController);
+}
+
+- (BOOL)shouldAutorotate {
+  // give other controllers a chance to act on it too
+  [self relayRotationMethod:^(UIViewController *controller) {
+    [controller shouldAutorotate];
+  }];
+
+  return !self.centerController || [self.centerController shouldAutorotate];
+}
+
+- (NSUInteger)supportedInterfaceOrientations {
+  if (self.centerController)
+  {
+    return [self.centerController supportedInterfaceOrientations];
+  }
+
+  return [super supportedInterfaceOrientations];
+}
+
+- (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
+  if (self.centerController)
+    return [self.centerController preferredInterfaceOrientationForPresentation];
+
+  return [super preferredInterfaceOrientationForPresentation];
+}
+
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
-    _preRotationWidth = self.referenceBounds.size.width;
-    _preRotationCenterWidth = self.centerView.bounds.size.width;
-    
-    if (self.rotationBehavior == IIViewDeckRotationKeepsViewSizes) {
-        _leftWidth = self.leftController.view.frame.size.width;
-        _rightWidth = self.rightController.view.frame.size.width;
-    }
-    
-    BOOL should = YES;
-    if (self.centerController)
-        should = [self.centerController shouldAutorotateToInterfaceOrientation:interfaceOrientation];
-    
-    return should;
+  // give other controllers a chance to act on it too
+  [self relayRotationMethod:^(UIViewController *controller) {
+    [controller shouldAutorotateToInterfaceOrientation:interfaceOrientation];
+  }];
+
+  return !self.centerController || [self.centerController shouldAutorotateToInterfaceOrientation:interfaceOrientation];
 }
 
 - (void)willAnimateRotationToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration {
